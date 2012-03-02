@@ -1,6 +1,4 @@
 module Funcs
-  use TypesAndDefs
-  
   implicit none
 
 contains
@@ -125,8 +123,38 @@ contains
 !!$    data_out = out
 !!$  end subroutine ifft
 
+  subroutine ifft_3d(data_in,data_out)
+    include "fftw3.f"
+    !3d fftw
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
+    complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
+    integer*8 :: plan
+    integer :: nx,ny,nz
+
+    nx = size(data_in,1)
+    ny = size(data_in,2)
+    nz = size(data_in,3)
+
+    allocate(in(nx,ny,nz))
+    allocate(out(nx,ny,nz))
+    
+    in = cmplx(0.,kind=8)
+    out = cmplx(0.,kind=8)
+    
+    in = cmplx(data_in,kind=8)
+    
+    call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
+
+    call dfftw_execute_dft(plan,in,out)
+
+    call dfftw_destroy_plan(plan)
+
+    out = out/sqrt(nx*ny*nz*1.)
+    data_out = out
+  end subroutine ifft_3d
+
   subroutine ifft(data_in, data_out)
-    use TypesAndDefs
     implicit none
     include "fftw3.f"
     !This is a rewrite of the original ifft subroutine to incorporate Mischa's idea and include the shift function in the routine.
@@ -192,22 +220,16 @@ contains
 !!$  end subroutine fft
 
   subroutine fft(data_in, data_out)
-    use TypesAndDefs
     implicit none
     include "fftw3.f"
     !This is a rewrite of the original ifft subroutine to incorporate Mischa's idea and include the shift function in the routine.
-    integer :: ndata,n_start, n_end,middle
     complex,intent(in) :: data_in(:)
     complex :: data_out(:)
     complex(kind=8) :: in(size(data_in)), out(size(data_out))
     integer*8 :: plan
+    integer :: ndata
 
-    ndata = size(data_in)
-    !n_start = pad/2
-    !n_end = n_start + 1
-    middle = size(in)/2
-    n_start = middle - floor(ndata/2.)
-    n_end = middle + floor(ndata/2.)
+    ndata=size(data_in)
 
     !Make a dummy array that is 11x the size of the input array to pad zeros
     in = cmplx(0.,kind=8)
@@ -237,9 +259,36 @@ contains
     out = out/sqrt(ndata*1.)
 
     !data_out = out(ndata*n_start+1:ndata*n_end)*1.
-    data_out = out(n_start:n_end)
+    data_out = out!(n_start:n_end)
   end subroutine fft
 
+    subroutine fft_3d(data_in,data_out)
+    include "fftw3.f"
+    !3d fftw
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
+    complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
+    integer*8 :: plan
+    integer :: nx,ny,nz
+
+    nx = size(data_in,1)
+    ny = size(data_in,2)
+    nz = size(data_in,3)
+    
+    allocate(in(nx,ny,nz))
+    allocate(out(nx,ny,nz))
+   
+    in = cmplx(data_in,kind=8)
+    
+    call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+
+    call dfftw_execute_dft(plan,in,out)
+
+    call dfftw_destroy_plan(plan)
+
+    out = out/sqrt(nx*ny*nz*1.)
+    data_out = out
+  end subroutine fft_3d
 
   subroutine fft_shift(stuff_in)
     
@@ -288,46 +337,7 @@ contains
     end if
   end subroutine ifft_shift
 
-  function xder(y) result(value)
-    use TypesAndDefs
-    implicit none
-    complex :: y(:)
-    integer(kind=4) :: j
-    complex, dimension(size(y)) :: value
-    integer(kind=4) :: E
-
-    E = size(y)
-
-    !    !second order central difference
-    !    do j=3,E-2
-    !       value(j) = (-y(j+2) + 8.0*y(j+1) - 8.0*y(j-1) + y(j-2) )/12.0/dx
-    !    end do
-    !    value(2) = (y(3) - y(1))/2.0/dx
-    !    value(E-1) = (y(E)-y(E-2))/2.0/dx
-    !    value(1) = ( -3.0*y(1) + 4.0*y(2) - y(3) )/2.0/dx
-    !    value(E) = (3.0*y(E) - 4.0*y(E-1) + y(E-2) )/2.0/dx
-
-    !6th order central difference
-    ! Coefficients:
-    ! (-1 +9 -45 +45 -9 +1)/60dx
-    !do j=4,E-3
-    !   value(j) = (-1.0*y(j-3)+9.0*y(j-2)-45.0*y(j-1)+45.0*y(j+1)-9.0*y(j+2)+1.0*y(j+3))/60.0/dx
-    !end do
-
-    value(2:E-1) = ( y(3:E) - y(1:E-2) )/ 2. / dx
-    j=3
-    value(j) = (-y(j+2) + 8.0*y(j+1) - 8.0*y(j-1) + y(j-2) )/12.0/dx
-    value(2) = (y(3) - y(1))/2.0/dx
-    value(1) = ( -3.0*y(1) + 4.0*y(2) - y(3) )/2.0/dx
-    j=E-2
-    value(j) = (-y(j+2) + 8.0*y(j+1) - 8.0*y(j-1) + y(j-2) )/12.0/dx
-    value(E-1) = (y(E)-y(E-2))/2.0/dx
-    value(E) = (3.0*y(E) - 4.0*y(E-1) + y(E-2) )/2.0/dx
-    return
-  end function xder
-
   function tridiag(a,b,c,d) result(x)
-    use TypesAndDefs
     implicit none
     real, intent(in), dimension(:) :: a,b,c
     complex,intent(in), dimension(:) :: d
@@ -438,15 +448,16 @@ contains
     implicit none
     real :: a,b,h
     complex :: F(:), S
-    integer :: temp, j, p
+    integer :: temp, j, p, rend
     complex :: dummy
     complex :: T
     dummy = S
     h=(b-a)/p
     dummy = dummy/2.0
+    rend=size(F)
     do j=1,p,2
        temp = (size(F)-1)/p*j + 1
-       if(temp > r_end)then
+       if(temp > rend)then
           write(*,*) 'Out of bounds in traprefine'
           exit
        end if
