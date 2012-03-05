@@ -17,8 +17,12 @@ real,allocatable, dimension(:) :: bx_raw,by_raw,bz_raw,ux_raw,uy_raw,uz_raw
 real,allocatable :: x(:),y(:),z(:)
 real,allocatable, dimension(:,:,:) :: bx,by,bz,ux,uy,uz,r,k
 complex,allocatable, dimension(:,:,:) :: bx_,by_,bz_,ux_,uy_,uz_
+complex, allocatable, dimension(:,:,:) :: bx2_,bxr_,bx2r_
+real, dimension(32,128,128) :: ibxr_,ibx2r_
+complex, dimension(32,128,128) :: ibx_,ibx2_
 integer :: NX,NY,NZ
 character *100 buffer
+integer :: ii,jj,kk
 
 call getarg(1,buffer)
 read(buffer,*) NX
@@ -39,7 +43,7 @@ allocate(ux(NX,NY,NZ),uy(NX,NY,NZ),uz(NX,NY,NZ))
 allocate(bx_(NX,NY,NZ),by_(NX,NY,NZ),bz_(NX,NY,NZ))
 allocate(ux_(NX,NY,NZ),uy_(NX,NY,NZ),uz_(NX,NY,NZ))
 allocate(r(NX,NY,NZ),k(NX,NY,NZ))
-
+allocate(bx2_(NX,NY,NZ),bxr_(NX,NY,NZ),bx2r_(NX,NY,NZ))
 
 !Need to read in the outputs from simulation
 !open the files
@@ -74,13 +78,14 @@ uz = reshape(uz_raw,(/NX,Ny,NZ/))
 
 !Ok now everything is put into a big matrix
 !Want to Fourier Transform these arrays
-
+bx_=cmplx(bx)
+call fft_real_3d(bx,bxr_)
 call fft_3d(cmplx(bx),bx_)
-call fft_3d(cmplx(by),by_)
-call fft_3d(cmplx(bz),bz_)
-call fft_3d(cmplx(ux),ux_)
-call fft_3d(cmplx(uy),uy_)
-call fft_3d(cmplx(uz),uz_)
+!!$call fft_3d(cmplx(by),by_)
+!!$call fft_3d(cmplx(bz),bz_)
+!!$call fft_3d(cmplx(ux),ux_)
+!!$call fft_3d(cmplx(uy),uy_)
+!!$call fft_3d(cmplx(uz),uz_)
 
 !!$!Testing the multi-d fft
 !!$!Using alex's method
@@ -105,14 +110,109 @@ call fft_3d(cmplx(uz),uz_)
 !!$   end do
 !!$end do
 !!$
-!!$print *,'bx:'
-!!$print *,abs(bx(:,1,1))
-!!$print *,'bx_:'
-!!$print *,abs(bx_(:,1,1))
-!!$print *,'bx2_:'
-!!$print *,abs(bx2_(:,1,1))
+bx2_=cmplx(bx)
+do kk=1,NZ
+   do jj=1,NY
+      call fft(cmplx(bx(:,jj,kk)),bx2_(:,jj,kk))
+   end do
+end do
+do kk=1,NZ
+   do ii=1,NX
+      call fft(cmplx(bx(ii,:,kk)),bx2_(ii,:,kk))
+   end do
+end do
+do jj=1,NY
+   do ii=1,NX
+      call fft(cmplx(bx(ii,jj,:)),bx2_(ii,jj,:))
+   end do
+end do
 
-!Define a k-vector
+!Testing the new real to complex fftw's
+do kk=1,NZ
+   do jj=1,NY
+      call fft_real_1d(bx(:,jj,kk),bx2r_(:,jj,kk))
+   end do
+end do
+do kk=1,NZ
+   do ii=1,NX
+      call fft_real_1d(bx(ii,:,kk),bx2r_(ii,:,kk))
+   end do
+end do
+do jj=1,NY
+   do ii=1,NX
+      call fft_real_1d(bx(ii,jj,:),bx2r_(ii,jj,:))
+   end do
+end do
+!!!!
+
+!Do the inverse transforms
+call ifft_3d(bx_,ibx_)
+call ifft_real_3d(bxr_,ibxr_)
+do kk=1,NZ
+   do jj=1,NY
+      call ifft(bx_(:,jj,kk),ibx2_(:,jj,kk))
+   end do
+end do
+do kk=1,NZ
+   do ii=1,NX
+      call ifft(bx_(ii,:,kk),ibx2_(ii,:,kk))
+   end do
+end do
+do jj=1,NY
+   do ii=1,NX
+      call ifft(bx_(ii,jj,:),ibx2_(ii,jj,:))
+   end do
+end do
+
+do kk=1,NZ
+   do jj=1,NY
+      call ifft_real_1d(ibx_(:,jj,kk),ibx2r_(:,jj,kk))
+   end do
+end do
+do kk=1,NZ
+   do ii=1,NX
+      call ifft_real_1d(ibx_(ii,:,kk),ibx2r_(ii,:,kk))
+   end do
+end do
+do jj=1,NY
+   do ii=1,NX
+      call ifft_real_1d(ibx_(ii,jj,:),ibx2r_(ii,jj,:))
+   end do
+end do
+
+print *,'bx:'
+print *,bx(:,1,1)
+print *,'bx_:'
+print *,bx_(:,1,1)
+print *,'bx2_:'
+print *,bx2_(:,1,1)
+print *,'bxr_:'
+print *,bxr_(:,1,1)
+print *,'bx2r_:'
+print *,bx2r_(:,1,1)
+print *, ''
+print *, ''
+print *,'ibx_:'
+print *,ibx_(:,1,1)
+print *,'ibx2_:'
+print *,ibx2_(:,1,1)
+print *,'ibxr_:'
+print *,ibxr_(:,1,1)
+print *,'ibx2r_:'
+print *,ibx2r_(:,1,1)
+print *,'***'
+print *,'***'
+print *,'bx/ibx_:'
+print *,bx(:,1,1)/abs(ibx_(:,1,1))
+print *,'bx/ibxr_:'
+print *,bx(:,1,1)/abs(ibxr_(:,1,1))
+print *,'bx/ibx2_:'
+print *,bx(:,1,1)/abs(ibx2_(:,1,1))
+print *,'bx/ibx2r_:'
+print *,bx(:,1,1)/abs(ibx2r_(:,1,1))
+
+
+
 
 !Calculate in k-space
 !j = curl(B)
