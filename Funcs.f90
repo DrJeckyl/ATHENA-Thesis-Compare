@@ -2,6 +2,56 @@ module Funcs
   implicit none
 
 contains
+  subroutine fftshift3d(stuffin)
+    implicit none
+    complex(kind=8) :: stuffin(:,:,:)
+    integer :: numx,numy,numz,ix,iy,iz
+    numx = size(stuffin,1)
+    numy = size(stuffin,2)
+    numz = size(stuffin,3)
+    do iz=1,numz
+       do iy=1,numy
+          call fft_shift(stuffin(:,iy,iz))
+       end do
+    end do
+    do iz=1,numz
+       do ix=1,numx
+          call fft_shift(stuffin(ix,:,iz))
+       end do
+    end do
+    do iy=1,numy
+       do ix=1,numx
+          call fft_shift(stuffin(ix,iy,:))
+       end do
+    end do
+  end subroutine fftshift3d
+
+  subroutine ifftshift3d(stuffin)
+    implicit none
+    complex(kind=8) :: stuffin(:,:,:)
+    integer :: numx,numy,numz,ix,iy,iz
+
+    numx = size(stuffin,1)
+    numy = size(stuffin,2)
+    numz = size(stuffin,3)
+    do iz=1,numz
+       do iy=1,numy
+          call ifft_shift(stuffin(:,iy,iz))
+       end do
+    end do
+    do iz=1,numz
+       do ix=1,numx
+          call ifft_shift(stuffin(ix,:,iz))
+       end do
+    end do
+    do iy=1,numy
+       do ix=1,numx
+          call ifft_shift(stuffin(ix,iy,:))
+       end do
+    end do
+  end subroutine ifftshift3d
+
+
   function t_diff(time_start, time_end)
     implicit none
     integer, dimension(8), intent(in) :: time_start, time_end
@@ -96,12 +146,12 @@ contains
 
     allocate(in(nx,ny,nz))
     allocate(out(nx,ny,nz))
-    
+
     in = cmplx(0.,kind=8)
     out = cmplx(0.,kind=8)
-    
+
     in = cmplx(data_in,kind=8)
-    
+
     call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
 
     call dfftw_execute_dft(plan,in,out)
@@ -139,10 +189,10 @@ contains
 
     !Make the plan
     call dfftw_plan_dft_1d(plan,size(in),in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
-    
+
     !Do the inverse transform
     call dfftw_execute_dft(plan,in,out)
-    
+
     !Destroy the plan
     call dfftw_destroy_plan(plan)
 
@@ -151,11 +201,11 @@ contains
 
     !Normalize
     out = out/sqrt(ndata*1.)
-    
+
     !data_out = out(ndata*n_start+1:ndata*n_end)*1.
     data_out = out
   end subroutine ifft
-    
+
 
 !!$  subroutine fft(data_in,data_out)
 !!$    
@@ -203,7 +253,7 @@ contains
 
     !Make Plan
     call dfftw_plan_dft_1d(plan,size(in),in,out,FFTW_FORWARD,FFTW_ESTIMATE)
-   
+
     !Do the inverse transform
     call dfftw_execute_dft(plan,in,out)
 
@@ -220,37 +270,37 @@ contains
     data_out = out!(n_start:n_end)
   end subroutine fft
 
-    subroutine fft_3d(data_in,data_out)
-      implicit none
-      include "fftw3.f"
-      !3d fftw
-      complex, intent(in) :: data_in(:,:,:)
-      complex :: data_out(:,:,:)
-      complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
-      integer*8 :: plan
-      integer :: nx,ny,nz
-      
-      nx = size(data_in,1)
-      ny = size(data_in,2)
-      nz = size(data_in,3)
-      
-      allocate(in(nx,ny,nz))
-      allocate(out(nx,ny,nz))
-      
-      in = cmplx(data_in,kind=8)
-      
-      call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
-      
-      call dfftw_execute_dft(plan,in,out)
-      
-      call dfftw_destroy_plan(plan)
-      
-      out = out/sqrt(nx*ny*nz*1.)
-      data_out = cmplx(out)
-    end subroutine fft_3d
+  subroutine fft_3d(data_in,data_out)
+    implicit none
+    include "fftw3.f"
+    !3d fftw
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
+    complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
+    integer*8 :: plan
+    integer :: nx,ny,nz
+
+    nx = size(data_in,1)
+    ny = size(data_in,2)
+    nz = size(data_in,3)
+
+    allocate(in(nx,ny,nz))
+    allocate(out(nx,ny,nz))
+
+    in = cmplx(data_in,kind=8)
+
+    call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+
+    call dfftw_execute_dft(plan,in,out)
+
+    call dfftw_destroy_plan(plan)
+
+    out = out/sqrt(nx*ny*nz*1.)
+    data_out = cmplx(out)
+  end subroutine fft_3d
 
   subroutine fft_shift(stuff_in)
-    
+
     implicit none
     complex(kind=8) :: stuff_in(:)
     complex(kind=8) :: dummy(size(stuff_in))
@@ -270,7 +320,7 @@ contains
   end subroutine fft_shift
 
   subroutine ifft_shift(stuff_in)
-    
+
     implicit none
     complex(kind=8) :: stuff_in(:)
     complex(kind=8) :: dummy(size(stuff_in))
@@ -451,7 +501,7 @@ contains
     complex(kind=8) :: out(size(data_out))
     integer*8 :: plan
     integer :: ndata
-    
+
     ndata=size(data_in)
 
     !Make a dummy array that is 11x the size of the input array to pad zeros
@@ -459,13 +509,13 @@ contains
     out = cmplx(0.,kind=8)
 
     in = real(data_in,kind=8)
-    
+
     !shift the data
-    !call ifft_shift(cmplx(in,kind=8))
+    call ifft_shift(cmplx(in,kind=8))
 
     !Make Plan
     call dfftw_plan_dft_r2c_1d(plan,size(in),in,out,FFTW_ESTIMATE)
-   
+
     !Do the inverse transform
     call dfftw_execute_dft_r2c(plan,in,out)
 
@@ -473,14 +523,14 @@ contains
     call dfftw_destroy_plan(plan)
 
     !shift the data
-    !call ifft_shift(cmplx(out,kind=8))
+    call fft_shift(cmplx(out,kind=8))
 
     !Normalize
     out = cmplx(out/sqrt(ndata*1.),kind=8)
 
     data_out = out
   end subroutine fft_real_1d
-  
+
   subroutine ifft_real_1d(data_in,data_out)
     implicit none
     include "fftw3.f"
@@ -490,19 +540,19 @@ contains
     real(kind=8) :: out(size(data_out))
     integer*8 :: plan
     integer :: ndata
-     ndata=size(data_in)
+    ndata=size(data_in)
 
     in = cmplx(0.,kind=8)
     out = real(0.,kind=8)
 
     in = cmplx(data_in,kind=8)
-    
+
     !shift the data
     !call ifft_shift(cmplx(in,kind=8))
 
     !Make Plan
     call dfftw_plan_dft_c2r_1d(plan,size(in),in,out,FFTW_ESTIMATE)
-   
+
     !Do the inverse transform
     call dfftw_execute_dft_c2r(plan,in,out)
 
@@ -530,18 +580,18 @@ contains
     nx = size(data_in,1)
     ny = size(data_in,2)
     nz = size(data_in,3)
-    
+
     allocate(in(nx,ny,nz))
     allocate(out(nx,ny,nz))
-    
+
     in = real(0.,kind=8)
     out = cmplx(0.,kind=8)
 
     in = real(data_in,kind=8)
-    
+
     !Make Plan
     call dfftw_plan_dft_r2c_3d(plan,nx,ny,nz,in,out,FFTW_ESTIMATE)
-   
+
     !Do the inverse transform
     call dfftw_execute_dft_r2c(plan,in,out)
 
@@ -566,18 +616,18 @@ contains
     nx = size(data_in,1)
     ny = size(data_in,2)
     nz = size(data_in,3)
-    
+
     allocate(in(nx,ny,nz))
     allocate(out(nx,ny,nz))
-    
+
     out = real(0.,kind=8)
     in = cmplx(0.,kind=8)
 
     in = cmplx(data_in,kind=8)
-    
+
     !Make Plan
     call dfftw_plan_dft_c2r_3d(plan,nx,ny,nz,in,out,FFTW_ESTIMATE)
-   
+
     !Do the inverse transform
     call dfftw_execute_dft_c2r(plan,in,out)
 
@@ -589,4 +639,6 @@ contains
 
     data_out = out
   end subroutine ifft_real_3d
+
+
 end module Funcs
