@@ -13,16 +13,19 @@ Program Main
 use Funcs
 IMPLICIT NONE
 complex, parameter :: i = (0.,1.)
-real,allocatable, dimension(:) :: bx_raw,by_raw,bz_raw,ux_raw,uy_raw,uz_raw
-real,allocatable :: x(:),y(:),z(:)
-real,allocatable, dimension(:,:,:) :: bx,by,bz,ux,uy,uz,r,k
-complex,allocatable, dimension(:,:,:) :: bx_,by_,bz_,ux_,uy_,uz_
-complex, allocatable, dimension(:,:,:) :: bx2_,bxr_,bx2r_
-real, dimension(32,128,128) :: ibxr_,ibx2r_
-complex, dimension(32,128,128) :: ibx_,ibx2_
+real,allocatable, dimension(:) :: bx_raw,by_raw,bz_raw,ux_raw,uy_raw,uz_raw !input from the text files
+real,allocatable :: x(:),y(:),z(:) !x,y,z vectors
+real,allocatable, dimension(:,:,:) :: bx,by,bz,ux,uy,uz,r,kx,ky,kz !Real, input arrays
+complex,allocatable, dimension(:,:,:) :: bx_,by_,bz_,ux_,uy_,uz_ !Fourier Transformed Variables
+complex, allocatable, dimension(:,:,:,:) :: k,u,b,j,E,a,jh
+complex, allocatable, dimension(:,:,:) :: j_dot_b, a_dot_b, phi
+complex, allocatable :: divj(:,:,:)
+complex, allocatable :: grad2(:,:,:)
 integer :: NX,NY,NZ
 character *100 buffer
-integer :: ii,jj,kk
+integer :: ii,jj,kk,counter
+integer :: PGOPEN
+real(kind=4), allocatable :: varx(:), vary(:), varz(:), varF(:,:,:)
 
 call getarg(1,buffer)
 read(buffer,*) NX
@@ -42,8 +45,14 @@ allocate(bx(NX,NY,NZ),by(NX,NY,NZ),bz(NX,NY,NZ))
 allocate(ux(NX,NY,NZ),uy(NX,NY,NZ),uz(NX,NY,NZ))
 allocate(bx_(NX,NY,NZ),by_(NX,NY,NZ),bz_(NX,NY,NZ))
 allocate(ux_(NX,NY,NZ),uy_(NX,NY,NZ),uz_(NX,NY,NZ))
-allocate(r(NX,NY,NZ),k(NX,NY,NZ))
-allocate(bx2_(NX,NY,NZ),bxr_(NX,NY,NZ),bx2r_(NX,NY,NZ))
+allocate(r(NX,NY,NZ))
+allocate(kx(NX,NY,NZ),ky(NX,NY,NZ),kz(NX,NY,NZ))
+allocate(k(3,NX,NY,NZ),u(3,NX,NY,NZ),b(3,NX,NY,NZ),j(3,NX,NY,NZ),E(3,NX,NY,NZ),a(3,NX,NY,NZ))
+allocate(jh(3,NX,NY,NZ))
+allocate(divj(NX,NY,NZ))
+allocate(varx(NX),vary(NY),varz(NZ),varF(NX,NY,NZ))
+allocate(j_dot_b(NX,NY,NZ),a_dot_b(NX,NY,NZ),phi(NX,NY,NZ))
+allocate(grad2(NX,NY,NZ))
 
 !Need to read in the outputs from simulation
 !open the files
@@ -78,145 +87,102 @@ uz = reshape(uz_raw,(/NX,Ny,NZ/))
 
 !Ok now everything is put into a big matrix
 !Want to Fourier Transform these arrays
-bx_=cmplx(bx)
-call fft_real_3d(bx,bxr_)
-call fft_3d(cmplx(bx),bx_)
-!!$call fft_3d(cmplx(by),by_)
-!!$call fft_3d(cmplx(bz),bz_)
-!!$call fft_3d(cmplx(ux),ux_)
-!!$call fft_3d(cmplx(uy),uy_)
-!!$call fft_3d(cmplx(uz),uz_)
+bx_=cmplx(bx,0.)
+by_=cmplx(by,0.)
+bz_=cmplx(bz,0.)
+ux_=cmplx(ux,0.)
+uy_=cmplx(uy,0.)
+uz_=cmplx(uz,0.)
+call fft3d(bx_,bx_)
+call fft3d(by_,by_)
+call fft3d(bz_,bz_)
+call fft3d(ux_,ux_)
+call fft3d(uy_,uy_)
+call fft3d(uz_,uz_)
+b(1,:,:,:) = bx_
+b(2,:,:,:) = by_
+b(3,:,:,:) = bz_
+u(1,:,:,:) = ux_
+u(2,:,:,:) = uy_
+u(3,:,:,:) = uz_
 
-!!$!Testing the multi-d fft
-!!$!Using alex's method
-!!$bx2_ = cmplx(bx)
-!!$do kk=1,NZ
-!!$   do jj=1,NY
-!!$      xt = cmplx(bx(:,jj,kk))
-!!$      call fft(xt,xt_)
-!!$      bx2_(:,jj,kk) = xt_
-!!$   end do
-!!$   do iii=1,NX
-!!$      yt = cmplx(bx(iii,:,kk))
-!!$      call fft(yt,yt_)
-!!$      bx2_(iii,:,kk) = yt_
-!!$   end do
-!!$end do
-!!$do jj=1,NY
-!!$   do iii=1,NX
-!!$      zt = cmplx(bx(iii,jj,:))
-!!$      call fft(zt,zt_)
-!!$      bx2_(iii,jj,:) = zt_
-!!$   end do
-!!$end do
-!!$
-bx2_=cmplx(bx)
-do kk=1,NZ
-   do jj=1,NY
-      call fft(cmplx(bx(:,jj,kk)),bx2_(:,jj,kk))
-   end do
-end do
-do kk=1,NZ
-   do ii=1,NX
-      call fft(cmplx(bx(ii,:,kk)),bx2_(ii,:,kk))
-   end do
+!Define the k-vector
+do ii=1,NX
+   kx(ii,:,:) = x(ii)-x(ii)/2.
 end do
 do jj=1,NY
-   do ii=1,NX
-      call fft(cmplx(bx(ii,jj,:)),bx2_(ii,jj,:))
-   end do
-end do
-
-!Testing the new real to complex fftw's
-do kk=1,NZ
-   do jj=1,NY
-      call fft_real_1d(bx(:,jj,kk),bx2r_(:,jj,kk))
-   end do
+   ky(:,jj,:) = y(jj)-y(jj)/2.
 end do
 do kk=1,NZ
-   do ii=1,NX
-      call fft_real_1d(bx(ii,:,kk),bx2r_(ii,:,kk))
-   end do
+   kz(:,:,kk) = z(kk)-z(kk)/2.
 end do
-do jj=1,NY
-   do ii=1,NX
-      call fft_real_1d(bx(ii,jj,:),bx2r_(ii,jj,:))
-   end do
-end do
-!!!!
-
-!Do the inverse transforms
-call ifft_3d(bx_,ibx_)
-call ifft_real_3d(bxr_,ibxr_)
-do kk=1,NZ
-   do jj=1,NY
-      call ifft(bx_(:,jj,kk),ibx2_(:,jj,kk))
-   end do
-end do
-do kk=1,NZ
-   do ii=1,NX
-      call ifft(bx_(ii,:,kk),ibx2_(ii,:,kk))
-   end do
-end do
-do jj=1,NY
-   do ii=1,NX
-      call ifft(bx_(ii,jj,:),ibx2_(ii,jj,:))
-   end do
-end do
-
-do kk=1,NZ
-   do jj=1,NY
-      call ifft_real_1d(ibx_(:,jj,kk),ibx2r_(:,jj,kk))
-   end do
-end do
-do kk=1,NZ
-   do ii=1,NX
-      call ifft_real_1d(ibx_(ii,:,kk),ibx2r_(ii,:,kk))
-   end do
-end do
-do jj=1,NY
-   do ii=1,NX
-      call ifft_real_1d(ibx_(ii,jj,:),ibx2r_(ii,jj,:))
-   end do
-end do
-
-print *,'bx:'
-print *,bx(:,1,1)
-print *,'bx_:'
-print *,bx_(:,1,1)
-print *,'bx2_:'
-print *,bx2_(:,1,1)
-print *,'bxr_:'
-print *,bxr_(:,1,1)
-print *,'bx2r_:'
-print *,bx2r_(:,1,1)
-print *, ''
-print *, ''
-print *,'ibx_:'
-print *,ibx_(:,1,1)
-print *,'ibx2_:'
-print *,ibx2_(:,1,1)
-print *,'ibxr_:'
-print *,ibxr_(:,1,1)
-print *,'ibx2r_:'
-print *,ibx2r_(:,1,1)
-print *,'***'
-print *,'***'
-print *,'bx/ibx_:'
-print *,bx(:,1,1)/abs(ibx_(:,1,1))
-print *,'bx/ibxr_:'
-print *,bx(:,1,1)/abs(ibxr_(:,1,1))
-print *,'bx/ibx2_:'
-print *,bx(:,1,1)/abs(ibx2_(:,1,1))
-print *,'bx/ibx2r_:'
-print *,bx(:,1,1)/abs(ibx2r_(:,1,1))
-
-
-
-
+k(1,:,:,:) = kx
+k(2,:,:,:) = ky
+k(3,:,:,:) = kz
 !Calculate in k-space
 !j = curl(B)
 !j = k x B
+
+!Do a cross product
+!Writing it in the main program to test with the intention to write a general function for it later
+!Maybe have it work for 1,2,3 dimensions?
+!Defined as:
+!C_x = A_y*B_z - A_z*B_y
+!C_y = A_z*B_x - A_x*B_z
+!C_z = A_x*B_y - A_y*B_x
+!jx= i*ky*bz_ - i*kz*by_
+!jy= i*kz*bx_ - i*kx*bz_
+!jz= i*kx*by_ - i*ky*bx_
+j = cross(i*k,b)
+
+!As per Ethan's suggestion, I should take the divergence of this quantitiy to see that I'm doing the curl correctly
+
+!Divergence is:
+! div(j) = ik dot j
+!divj = i*kx*jx + i*ky*jy + i*kz*jz
+divj = dot(i*k,j)
+
+!Ok, presuming that is working, lets do j dot b
+!j_dot_b = jx*bx_ + jy*by_ + jz*bz_
+j_dot_b = dot(j,b)
+
+!And v x b
+E = cross(u,b)
+
+!Calculate the vector potential
+!grad^2 a = -j
+!a = -j/grad^2
+grad2 = dot(k,k)
+forall(ii=1:3) a(ii,:,:,:) = -j(ii,:,:,:)/grad2
+
+!a dot b
+a_dot_b = dot(a,b)
+
+!scalar potential, phi
+phi = dot(i*k,E)/grad2
+
+!A x ( v x B + grad(phi)) - \bar{A} x (\bar{v x B} + grad{\bar{phi}})
+jh = cross(a,(E+ grad(i*k,phi)))
+
+
+!Now plot a slice and check that it's zero
+!Book keeping for the PGPLOT routines(required)
+!!$call PGSLCT(PGOPEN('/ps'))
+!!$call PGASK(.false.)
+!!$
+!!$varx = real(kx(:,1,1),kind=4)
+!!$vary = real(ky(1,:,1),kind=4)
+!!$varz = real(kz(1,1,:),kind=4)
+varF = abs(divj)
+!!$
+
+open(unit=1,file='divj.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,1)), real(ky(1,jj,1)), varF(ii,jj,NZ/2)
+   end do
+end do
+close(1)
 
 
 !Inverse Fourier Transform
