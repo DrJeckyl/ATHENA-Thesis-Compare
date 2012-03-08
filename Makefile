@@ -43,3 +43,5 @@ Gauss: Funcs.o TypesAndDefs.o Gauss.o
 	$(COMP) $(FLAGS) -o Gauss Gauss.o Funcs.o TypesAndDefs.o $(LIBS)
 clean:
 	rm *.mod *.o Main
+remove:
+	rm *.dat

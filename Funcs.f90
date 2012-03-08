@@ -44,7 +44,7 @@ contains
     data_out = out
   end subroutine fft
 
-  subroutine fft3d(data_in, data_out)
+  subroutine fft3d(data_in, data_out,shift)
     !This routine takes a (complex) 3d array as input and calls the 1D fft algorithm over each dimension of the array
     implicit none
     complex, intent(in) :: data_in(:,:,:)
@@ -53,18 +53,19 @@ contains
     complex, allocatable, dimension(:,:,:) :: in, out
     integer :: nx,ny,nz !size of the dimensions
     integer :: ix,iy,iz !counter variables for each dimension
-
+    logical :: shift
     nx = size(data_in,1)
     ny = size(data_in,2)
     nz = size(data_in,3)
 
     allocate(temp(nx,ny,nz),in(nx,ny,nz),out(nx,ny,nz))
 
-    !Shift the input array "along the half spaces"
-    temp = cmplx(data_in,kind=8)
-    call ifftshift3d(temp)
-    in = cmplx(temp)
-
+    if(shift)then
+       !Shift the input array "along the half spaces"
+       temp = cmplx(data_in,kind=8)
+       call ifftshift3d(temp)
+       in = cmplx(temp)
+    end if
     !Call the fft's for all the dimensions
     do iz=1,nz
        do iy=1,ny
@@ -80,14 +81,59 @@ contains
        end do
     end do
 
-    !Shift back
-    temp = cmplx(out,kind=8)
-    call fftshift3d(temp)
-    out = cmplx(temp)
+    if(shift)then
+       !Shift back
+       temp = cmplx(out,kind=8)
+       call fftshift3d(temp)
+       out = cmplx(temp)
+    end if
 
     !Put the values in data_out
     data_out = out
   end subroutine fft3d
+
+  subroutine fft_3d(data_in,data_out,shift)
+    !fft routine which uses the 3d intel fft algorithm
+    implicit none
+    include "fftw3.f"
+    !3d fftw
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
+    complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
+    integer*8 :: plan
+    integer :: nx,ny,nz
+    logical :: shift
+
+    nx = size(data_in,1)
+    ny = size(data_in,2)
+    nz = size(data_in,3)
+
+    allocate(in(nx,ny,nz))
+    allocate(out(nx,ny,nz))
+
+    in = cmplx(data_in,kind=8)
+    
+    if(shift)then
+       !Shift
+       call ifftshift3d(in)
+    end if
+    
+    call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
+
+    call dfftw_execute_dft(plan,in,out)
+
+    call dfftw_destroy_plan(plan)
+    
+    if(shift)then
+       !Shift back
+       call fftshift3d(out)
+    end if
+    
+    out = out/sqrt(nx*ny*nz*1.)
+    data_out = cmplx(out)
+  end subroutine fft_3d
+
+
   !==============================================================!
   !
   !Backwards Transforms
@@ -133,7 +179,7 @@ contains
     data_out = out
   end subroutine ifft
 
-  subroutine ifft3d(data_in, data_out)
+  subroutine ifft3d(data_in, data_out,shift)
     !This routine takes a (complex) 3d array as input and calls the 1D fft algorithm over each dimension of the array
     implicit none
     complex, intent(in) :: data_in(:,:,:)
@@ -142,17 +188,20 @@ contains
     complex, allocatable, dimension(:,:,:) :: in, out
     integer :: nx,ny,nz !size of the dimensions
     integer :: ix,iy,iz !counter variables for each dimension
-
+    logical :: shift
+    
     nx = size(data_in,1)
     ny = size(data_in,2)
     nz = size(data_in,3)
 
     allocate(temp(nx,ny,nz),in(nx,ny,nz),out(nx,ny,nz))
 
-    !Shift the input array "along the half spaces"
-    temp = cmplx(data_in,kind=8)
-    call ifftshift3d(temp)
-    in = cmplx(temp)
+    if(shift)then
+       !Shift the input array "along the half spaces"
+       temp = cmplx(data_in,kind=8)
+       call ifftshift3d(temp)
+       in = cmplx(temp)
+    end if
 
     !Call the fft's for all the dimensions
     do iz=1,nz
@@ -168,15 +217,59 @@ contains
           call ifft(in(ix,iy,:),out(ix,iy,:))
        end do
     end do
-
-    !Shift back
-    temp = cmplx(out,kind=8)
-    call fftshift3d(temp)
-    out = cmplx(temp)
-
+    if(shift)then
+       !Shift back
+       temp = cmplx(out,kind=8)
+       call fftshift3d(temp)
+       out = cmplx(temp)
+    end if
+    
     !Put the values in data_out
     data_out = out
   end subroutine ifft3d
+
+  subroutine ifft_3d(data_in,data_out,shift)
+    implicit none
+    include "fftw3.f"
+    !3d fftw
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
+    complex(kind=8),allocatable :: in(:,:,:),out(:,:,:)
+    integer*8 :: plan
+    integer :: nx,ny,nz
+    logical :: shift
+
+    nx = size(data_in,1)
+    ny = size(data_in,2)
+    nz = size(data_in,3)
+
+    allocate(in(nx,ny,nz))
+    allocate(out(nx,ny,nz))
+
+    in = cmplx(0.,kind=8)
+    out = cmplx(0.,kind=8)
+
+    in = cmplx(data_in,kind=8)
+
+    if(shift)then
+       !Shift the data along the "half spaces" (no idea what that really means)
+       call ifftshift3d(in)
+    end if
+    
+    call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
+
+    call dfftw_execute_dft(plan,in,out)
+
+    call dfftw_destroy_plan(plan)
+
+    if(shift)then
+       !Shift back
+       call fftshift3d(out)
+    end if
+    
+    out = cmplx(out/sqrt(nx*ny*nz*1.),kind=8)
+    data_out = out
+  end subroutine ifft_3d
   !===============================================================!
   !
   !Shift Functions
@@ -335,12 +428,41 @@ contains
     forall(count=1:3) C(count,:,:,:) = A(count,:,:,:)*b
   end function grad
   
-  function average2D(input) result(avg)
+  function average3(input) result(avg)
     !This function will take a 2 dimensional average
-    !It will take in a 2D array and output a 2D array whose values are all the average value
+    !It will take in a 3d  array, take the average in each of the x-y planes and out a 3D array whose x-y planes are replaced by that average
     implicit none
-    complex :: input(:,:)
-    complex :: avg(size(input,1),size(input,2))
-    avg = sum(input)/size(input,1)/size(input,2)
-  end function average2D
+    complex :: input(:,:,:)
+    complex :: avg(size(input,1),size(input,2),size(input,3))
+    integer :: nx,ny,nz
+    integer :: iz
+
+    nx = size(input,1)
+    ny = size(input,2)
+    nz = size(input,3)
+    
+    do iz=1,nz
+       avg(:,:,iz) = sum(input(:,:,iz))/(nx*1.)/(ny*1.)
+    end do
+  end function average3
+
+    function average4(input) result(avg)
+    !This function will take a 2 dimensional average
+    !It will take in a 4d  array, take the average in each of the x-y planes and out a 4D array whose x-y planes are replaced by that average
+    implicit none
+    complex :: input(:,:,:,:)
+    complex :: avg(size(input,1),size(input,2),size(input,3),size(input,4))
+    integer :: nx,ny,nz
+    integer :: iz,id
+
+    nx = size(input,1)
+    ny = size(input,2)
+    nz = size(input,3)
+    do id=1,3
+       do iz=1,nz
+          avg(id,:,:,iz) = sum(input(id,:,:,iz))/(nx*1.)/(ny*1.)
+       end do
+    end do
+  end function average4
+  
 end module Funcs

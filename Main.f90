@@ -25,8 +25,9 @@ integer :: NX,NY,NZ
 character *100 buffer
 integer :: ii,jj,kk,counter
 integer :: PGOPEN
+integer :: slice
 real(kind=4), allocatable :: varx(:), vary(:), varz(:), varF(:,:,:)
-
+real, parameter :: dx = 0.01
 call getarg(1,buffer)
 read(buffer,*) NX
 call getarg(2,buffer)
@@ -93,12 +94,12 @@ bz_=cmplx(bz,0.)
 ux_=cmplx(ux,0.)
 uy_=cmplx(uy,0.)
 uz_=cmplx(uz,0.)
-call fft3d(bx_,bx_)
-call fft3d(by_,by_)
-call fft3d(bz_,bz_)
-call fft3d(ux_,ux_)
-call fft3d(uy_,uy_)
-call fft3d(uz_,uz_)
+call fft3d(bx_,bx_,.true.)
+call fft3d(by_,by_,.true.)
+call fft3d(bz_,bz_,.true.)
+call fft3d(ux_,ux_,.true.)
+call fft3d(uy_,uy_,.true.)
+call fft3d(uz_,uz_,.true.)
 b(1,:,:,:) = bx_
 b(2,:,:,:) = by_
 b(3,:,:,:) = bz_
@@ -144,26 +145,52 @@ divj = dot(i*k,j)
 
 !Ok, presuming that is working, lets do j dot b
 !j_dot_b = jx*bx_ + jy*by_ + jz*bz_
-j_dot_b = dot(j,b)
+!j_dot_b = dot(j,b)
+j_dot_b = average3(dot(j,b)) - dot( average4(j), average4(b) )
 
 !And v x b
 E = cross(u,b)
+E = average4(E) - cross( average4(u), average4(b) )
 
 !Calculate the vector potential
 !grad^2 a = -j
 !a = -j/grad^2
 grad2 = dot(k,k)
+!Add the tiniest number to grad2 where it is zero so that we can avoid the divide by zero later
+do ii=1,nx
+   do jj=1,ny
+      do kk=1,nz
+         if( grad2(ii,jj,kk) == 0. )then
+            grad2(ii,jj,kk) = grad2(ii,jj,kk) + tiny(dx)
+         end if
+      end do
+   end do
+end do
 forall(ii=1:3) a(ii,:,:,:) = -j(ii,:,:,:)/grad2
 
 !a dot b
 a_dot_b = dot(a,b)
+a_dot_b = average3(a_dot_b) - dot( average4(a), average4(b) )
 
 !scalar potential, phi
 phi = dot(i*k,E)/grad2
 
 !A x ( v x B + grad(phi)) - \bar{A} x (\bar{v x B} + grad{\bar{phi}})
 jh = cross(a,(E+ grad(i*k,phi)))
+jh = average4(jh) - cross( average4(a), (average4(E) + grad(k,average3(phi))))
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+!Inverse Fourier Transform
+
+do ii=1,3
+   call ifft3d(j(i,:,:,:),j(i,:,:,:),.true.)
+   call ifft3d(a(i,:,:,:),a(i,:,:,:),.true.)
+   call ifft3d(E(i,:,:,:),E(i,:,:,:),.true.)
+   call ifft3d(jh(i,:,:,:),jh(i,:,:,:),.true.)
+end do
+call ifft3d(j_dot_b,j_dot_b,.true.)
+call ifft3d(a_dot_b,a_dot_b,.true.)
+call ifft3d(phi,phi,.true.)
 
 !Now plot a slice and check that it's zero
 !Book keeping for the PGPLOT routines(required)
@@ -173,17 +200,67 @@ jh = cross(a,(E+ grad(i*k,phi)))
 !!$varx = real(kx(:,1,1),kind=4)
 !!$vary = real(ky(1,:,1),kind=4)
 !!$varz = real(kz(1,1,:),kind=4)
-varF = abs(divj)
-!!$
-
-open(unit=1,file='divj.dat',form='formatted')
+varF = abs(j(1,:,:,:))
+slice = NZ/2
+open(unit=1,file='jx_slice.dat',form='formatted')
 do jj=1,NY
    do ii=1,NX
-      write(1,*) real(kx(ii,1,1)), real(ky(1,jj,1)), varF(ii,jj,NZ/2)
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
    end do
 end do
 close(1)
 
+varF = abs(a(1,:,:,:))
+open(unit=1,file='ax_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
 
-!Inverse Fourier Transform
+varF = abs(E(1,:,:,:))
+open(unit=1,file='Ex_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
+
+varF = abs(jh(1,:,:,:))
+open(unit=1,file='jhx_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
+
+varF = abs(j_dot_b)
+open(unit=1,file='j_dot_b_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
+
+varF = abs(a_dot_b)
+open(unit=1,file='a_dot_b_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
+
+varF = abs(phi)
+open(unit=1,file='phi_slice.dat',form='formatted')
+do jj=1,NY
+   do ii=1,NX
+      write(1,*) real(kx(ii,1,slice)), real(ky(1,jj,slice)), varF(ii,jj,slice)
+   end do
+end do
+close(1)
 End Program Main
