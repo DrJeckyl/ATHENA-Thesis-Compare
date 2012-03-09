@@ -385,7 +385,7 @@ contains
     nz = size(input,3)
     
     do iz=1,nz
-       avg(:,:,iz) = sum(input(:,:,iz))/(nx*1._8)/(ny*1._8)
+       avg(:,:,iz) = sum(input(:,:,iz))/real(nx,kind=8)/real(ny,kind=8)
     end do
   end function average3
 
@@ -403,7 +403,7 @@ contains
     nz = size(input,3)
     do id=1,3
        do iz=1,nz
-          avg(id,:,:,iz) = sum(input(id,:,:,iz))/(nx*1._8)/(ny*1._8)
+          avg(id,:,:,iz) = sum(input(id,:,:,iz))/real(nx,kind=8)/real(ny,kind=8)
        end do
     end do
   end function average4
