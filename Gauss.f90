@@ -3,15 +3,15 @@ Program Gauss
   implicit none
   
   integer :: PGOPEN
-  complex, parameter :: i=(0.,1.)
-  complex, allocatable, dimension(:,:,:) :: F_, iF_
-  complex, allocatable, dimension(:,:,:) :: F
-  real, allocatable, dimension(:,:,:) :: x,y,z,R
-  real, allocatable, dimension(:,:,:) :: kx,ky,kz
+  complex(kind=8), parameter :: i=(0._8,1._8)
+  complex(kind=8), allocatable, dimension(:,:,:) :: F_, iF_
+  complex(kind=8), allocatable, dimension(:,:,:) :: F
+  real(kind=8), allocatable, dimension(:,:,:) :: x,y,z,R
+  real(kind=8), allocatable, dimension(:,:,:) :: kx,ky,kz
   complex(kind=8), allocatable, dimension(:,:,:) :: kxt,kyt,kzt
   integer :: ii,jj,kk
   integer :: nx,ny,nz,mid
-  real,parameter :: dx=0.1
+  real(kind=8),parameter :: dx=0.1_8
   real(kind=4), allocatable :: varx(:), vary(:), varz(:), varF(:,:,:)
 
   nx=100
@@ -25,11 +25,11 @@ Program Gauss
   allocate(kxt(nx,ny,nz),kyt(nx,ny,nz),kzt(nx,ny,nz))
 
   do ii=1,nx
-     x(ii,:,:) = real(ii-1.)*dx
-     y(:,ii,:) = real(ii-1.)*dx
-     z(:,:,ii) = real(ii-1.)*dx
+     x(ii,:,:) = (real(ii,kind=8)-1._8)*dx
+     y(:,ii,:) = (real(ii,kind=8)-1._8)*dx
+     z(:,:,ii) = (real(ii,kind=8)-1._8)*dx
   end do
-  R = sqrt((x-mid*dx)**2 + (y-mid*dx)**2 + (z-mid*dx)**2)
+  R = sqrt((x-real(mid,kind=8)*dx)**2 + (y-real(mid,kind=8)*dx)**2 + (z-real(mid,kind=8)*dx)**2)
   F = exp(-R**2)
   
 !!$  do ii=1,nx/2
@@ -45,19 +45,19 @@ Program Gauss
 !!$     kz(:,:,nz/2+ii) = real((-nz+ii-1.+nz/2.)/(nz*1.)/dx)
 !!$  end do
 
-  kx = x - real(mid)*dx
-  ky = y - real(mid)*dx
-  kz = z - real(mid)*dx
+  kx = x - real(mid,kind=8)*dx
+  ky = y - real(mid,kind=8)*dx
+  kz = z - real(mid,kind=8)*dx
 
-  kxt = cmplx(kx,0._8)
-  kyt = cmplx(ky,0._8)
-  kzt = cmplx(kz,0._8)
+  kxt = cmplx(kx,0._8,kind=8)
+  kyt = cmplx(ky,0._8,kind=8)
+  kzt = cmplx(kz,0._8,kind=8)
   call fftshift3d(kxt)
   call fftshift3d(kyt)
   call fftshift3d(kzt)
-  kx = real(kxt)
-  ky = real(kyt)
-  kz = real(kzt)
+  kx = real(kxt,kind=8)
+  ky = real(kyt,kind=8)
+  kz = real(kzt,kind=8)
 
   print *, 'x(1:5), x(n-5:n)'
   print *, x(1:5,1,1), x(nx-5:nx,1,1)
@@ -84,12 +84,12 @@ Program Gauss
   close(1)
 
   !For completeness, inverse back
-  call ifft_3d(F_,iF_,.true.)
+  call ifft_3d(F_,iF_,.false.)
   
   open(unit=1,file='igauss1_.dat',form='formatted')
   do kk=1,nz
      do jj=1,ny
-         write(1,*) kx(jj,1,1), ky(1,kk,1), abs(iF_(jj,kk,1))
+         write(1,*) x(jj,1,1), y(1,kk,1), abs(iF_(jj,kk,1))
      end do
   end do
   close(1)

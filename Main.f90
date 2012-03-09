@@ -12,22 +12,22 @@
 Program Main
 use Funcs
 IMPLICIT NONE
-complex, parameter :: i = (0.,1.)
-real,allocatable, dimension(:) :: bx_raw,by_raw,bz_raw,ux_raw,uy_raw,uz_raw !input from the text files
-real,allocatable :: x(:),y(:),z(:) !x,y,z vectors
-real,allocatable, dimension(:,:,:) :: bx,by,bz,ux,uy,uz,r,kx,ky,kz !Real, input arrays
-complex,allocatable, dimension(:,:,:) :: bx_,by_,bz_,ux_,uy_,uz_ !Fourier Transformed Variables
-complex, allocatable, dimension(:,:,:,:) :: k,u,b,j,E,a,jh
-complex, allocatable, dimension(:,:,:) :: j_dot_b, a_dot_b, phi
-complex, allocatable :: divj(:,:,:)
-complex, allocatable :: grad2(:,:,:)
+complex(kind=8), parameter :: i = (0._8,1._8)
+real(kind=8),allocatable, dimension(:) :: bx_raw,by_raw,bz_raw,ux_raw,uy_raw,uz_raw !input from the text files
+real(kind=8),allocatable :: x(:),y(:),z(:) !x,y,z vectors
+real(kind=8),allocatable, dimension(:,:,:) :: bx,by,bz,ux,uy,uz,r,kx,ky,kz !Real, input arrays
+complex(kind=8),allocatable, dimension(:,:,:) :: bx_,by_,bz_,ux_,uy_,uz_ !Fourier Transformed Variables
+complex(kind=8), allocatable, dimension(:,:,:,:) :: k,u,b,j,E,a,jh
+complex(kind=8), allocatable, dimension(:,:,:) :: j_dot_b, a_dot_b, phi
+complex(kind=8), allocatable :: divj(:,:,:)
+complex(kind=8), allocatable :: grad2(:,:,:)
 integer :: NX,NY,NZ
 character *100 buffer
 integer :: ii,jj,kk,counter
 integer :: PGOPEN
 integer :: slice
 real(kind=4), allocatable :: varx(:), vary(:), varz(:), varF(:,:,:)
-real, parameter :: dx = 0.01
+real(kind=8), parameter :: dx = 0.01_8
 call getarg(1,buffer)
 read(buffer,*) NX
 call getarg(2,buffer)
@@ -88,12 +88,12 @@ uz = reshape(uz_raw,(/NX,Ny,NZ/))
 
 !Ok now everything is put into a big matrix
 !Want to Fourier Transform these arrays
-bx_=cmplx(bx,0.)
-by_=cmplx(by,0.)
-bz_=cmplx(bz,0.)
-ux_=cmplx(ux,0.)
-uy_=cmplx(uy,0.)
-uz_=cmplx(uz,0.)
+bx_=cmplx(bx,0._8)
+by_=cmplx(by,0._8)
+bz_=cmplx(bz,0._8)
+ux_=cmplx(ux,0._8)
+uy_=cmplx(uy,0._8)
+uz_=cmplx(uz,0._8)
 call fft3d(bx_,bx_,.true.)
 call fft3d(by_,by_,.true.)
 call fft3d(bz_,bz_,.true.)
@@ -109,13 +109,13 @@ u(3,:,:,:) = uz_
 
 !Define the k-vector
 do ii=1,NX
-   kx(ii,:,:) = x(ii)-x(ii)/2.
+   kx(ii,:,:) = x(ii)-x(ii)/2._8
 end do
 do jj=1,NY
-   ky(:,jj,:) = y(jj)-y(jj)/2.
+   ky(:,jj,:) = y(jj)-y(jj)/2._8
 end do
 do kk=1,NZ
-   kz(:,:,kk) = z(kk)-z(kk)/2.
+   kz(:,:,kk) = z(kk)-z(kk)/2._8
 end do
 k(1,:,:,:) = kx
 k(2,:,:,:) = ky
@@ -160,7 +160,7 @@ grad2 = dot(k,k)
 do ii=1,nx
    do jj=1,ny
       do kk=1,nz
-         if( grad2(ii,jj,kk) == 0. )then
+         if( grad2(ii,jj,kk) == 0._8 )then
             grad2(ii,jj,kk) = grad2(ii,jj,kk) + tiny(dx)
          end if
       end do
