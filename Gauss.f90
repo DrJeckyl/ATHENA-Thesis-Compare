@@ -32,28 +32,32 @@ Program Gauss
   R = sqrt((x-mid*dx)**2 + (y-mid*dx)**2 + (z-mid*dx)**2)
   F = exp(-R**2)
   
-  do ii=1,nx/2
-     kx(ii,:,:) = real((ii-1.)/(nx*1.)/dx)
-     kx(nx/2+ii,:,:) = real((-nx+ii-1.+nx/2.)/(nx*1.)/dx)
-  end do
-  do ii=1,ny/2
-     ky(:,ii,:) = real((ii-1.)/(ny*1.)/dx)
-     ky(:,ny/2+ii,:) = real((-ny+ii-1.+ny/2.)/(ny*1.)/dx)
-  end do
-  do ii=1,nz/2
-     kz(:,:,ii) = real((ii-1.)/(nz*1.)/dx)
-     kz(:,:,nz/2+ii) = real((-nz+ii-1.+nz/2.)/(nz*1.)/dx)
-  end do
+!!$  do ii=1,nx/2
+!!$     kx(ii,:,:) = real((ii-1.)/(nx*1.)/dx)
+!!$     kx(nx/2+ii,:,:) = real((-nx+ii-1.+nx/2.)/(nx*1.)/dx)
+!!$  end do
+!!$  do ii=1,ny/2
+!!$     ky(:,ii,:) = real((ii-1.)/(ny*1.)/dx)
+!!$     ky(:,ny/2+ii,:) = real((-ny+ii-1.+ny/2.)/(ny*1.)/dx)
+!!$  end do
+!!$  do ii=1,nz/2
+!!$     kz(:,:,ii) = real((ii-1.)/(nz*1.)/dx)
+!!$     kz(:,:,nz/2+ii) = real((-nz+ii-1.+nz/2.)/(nz*1.)/dx)
+!!$  end do
 
-!!$  kxt = cmplx(kx,0._8)
-!!$  kyt = cmplx(ky,0._8)
-!!$  kzt = cmplx(kz,0._8)
-!!$  call fftshift3d(kxt)
-!!$  call fftshift3d(kyt)
-!!$  call fftshift3d(kzt)
-!!$  kx = real(kxt)
-!!$  ky = real(kyt)
-!!$  kz = real(kzt)
+  kx = x - real(mid)*dx
+  ky = y - real(mid)*dx
+  kz = z - real(mid)*dx
+
+  kxt = cmplx(kx,0._8)
+  kyt = cmplx(ky,0._8)
+  kzt = cmplx(kz,0._8)
+  call fftshift3d(kxt)
+  call fftshift3d(kyt)
+  call fftshift3d(kzt)
+  kx = real(kxt)
+  ky = real(kyt)
+  kz = real(kzt)
 
   print *, 'x(1:5), x(n-5:n)'
   print *, x(1:5,1,1), x(nx-5:nx,1,1)
@@ -63,7 +67,7 @@ Program Gauss
   open(unit=1,file='gauss.dat',form='formatted')
   do kk=1,nz
      do jj=1,ny
-        write(1,*) y(1,jj,1), z(1,1,kk), real(F(1,jj,kk))
+        write(1,*) x(jj,1,1), y(1,kk,1), real(F(jj,kk,1))
      end do
   end do
   close(1)
@@ -74,7 +78,7 @@ Program Gauss
   open(unit=1,file='gauss1_.dat',form='formatted')
   do kk=1,nz
      do jj=1,ny
-        write(1,*) ky(1,jj,1), kz(1,1,kk), abs(F_(1,jj,kk))
+        write(1,*) kx(jj,1,1), ky(1,kk,1), abs(F_(jj,kk,1))
      end do
   end do
   close(1)
@@ -85,7 +89,7 @@ Program Gauss
   open(unit=1,file='igauss1_.dat',form='formatted')
   do kk=1,nz
      do jj=1,ny
-        write(1,*) ky(1,jj,1)+5., kz(1,1,kk)+5., abs(iF_(1,jj,kk))
+         write(1,*) kx(jj,1,1), ky(1,kk,1), abs(iF_(jj,kk,1))
      end do
   end do
   close(1)

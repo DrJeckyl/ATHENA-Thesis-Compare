@@ -253,7 +253,7 @@ contains
 
     if(shift)then
        !Shift the data along the "half spaces" (no idea what that really means)
-       call ifftshift3d(in)
+       call fftshift3d(in)
     end if
     
     call dfftw_plan_dft_3d(plan,nx,ny,nz,in,out,FFTW_BACKWARD,FFTW_ESTIMATE)
@@ -264,7 +264,7 @@ contains
 
     if(shift)then
        !Shift back
-       call fftshift3d(out)
+       call ifftshift3d(out)
     end if
     
     out = cmplx(out/sqrt(nx*ny*nz*1.),kind=8)
