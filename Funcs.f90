@@ -1,6 +1,10 @@
 module Funcs
   implicit none
 
+  interface operator (.x.)
+     module procedure cross
+  end interface operator (.x.)
+
 contains
   !Forward FFT algorithms
   !=======================================================!
@@ -331,7 +335,7 @@ contains
 !==================================================!
   function cross(A,B) result(C)
     implicit none
-    complex(kind=8), dimension(:,:,:,:) :: A,B
+    complex(kind=8),intent(in), dimension(:,:,:,:) :: A,B
     complex(kind=8), allocatable, dimension(:,:,:,:) :: C
     integer :: ix,iy,iz
     ix = size(A,2)
@@ -348,7 +352,7 @@ contains
 
   function dot(A,B) result(C)
     implicit none
-    complex(kind=8), dimension(:,:,:,:) :: A,B
+    complex(kind=8),intent(in), dimension(:,:,:,:) :: A,B
     complex(kind=8), allocatable, dimension(:,:,:) :: C
     integer :: ix,iy,iz
     ix = size(A,2)
@@ -360,8 +364,8 @@ contains
   
   function grad(A,b) result(C)
     implicit none
-    complex(kind=8), dimension(:,:,:,:) :: A
-    complex(kind=8), dimension(:,:,:) :: b
+    complex(kind=8),intent(in), dimension(:,:,:,:) :: A
+    complex(kind=8),intent(in), dimension(:,:,:) :: b
     complex(kind=8), allocatable, dimension(:,:,:,:) :: C
     integer :: ix,iy,iz,count
     ix = size(A,2)
@@ -375,7 +379,7 @@ contains
     !This function will take a 2 dimensional average
     !It will take in a 3d  array, take the average in each of the x-y planes and out a 3D array whose x-y planes are replaced by that average
     implicit none
-    complex(kind=8) :: input(:,:,:)
+    complex(kind=8),intent(in) :: input(:,:,:)
     complex(kind=8) :: avg(size(input,1),size(input,2),size(input,3))
     integer :: nx,ny,nz
     integer :: iz
@@ -393,7 +397,7 @@ contains
     !This function will take a 2 dimensional average
     !It will take in a 4d  array, take the average in each of the x-y planes and out a 4D array whose x-y planes are replaced by that average
     implicit none
-    complex(kind=8) :: input(:,:,:,:)
+    complex(kind=8),intent(in) :: input(:,:,:,:)
     complex(kind=8) :: avg(size(input,1),size(input,2),size(input,3),size(input,4))
     integer :: nx,ny,nz
     integer :: iz,id

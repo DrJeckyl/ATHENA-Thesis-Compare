@@ -27,12 +27,14 @@ LIBS += -lpng
 LIBS += -lmkl_rt
 
 COMP = ifort
-all: Main Gauss
+all: Main Gauss Test_Sin
 
 Main.o: Funcs.o TypesAndDefs.o Main.f90
 	$(COMP) -c $(FLAGS) Main.f90 $(LIBS)
 Gauss.o : Funcs.o TypesAndDefs.o Gauss.f90
 	$(COMP) -c $(FLAGS) Gauss.f90 $(LIBS)
+Test_Sin.o: Funcs.o Main.f90
+	$(COMP) -c $(FLAGS) Main.f90 $(LIBS)
 TypesAndDefs.o: TypesAndDefs.f90
 	$(COMP) -c $(FLAGS) TypesAndDefs.f90 $(LIBS)
 Funcs.o: TypesAndDefs.o Funcs.f90
@@ -40,6 +42,8 @@ Funcs.o: TypesAndDefs.o Funcs.f90
 Main: Funcs.o TypesAndDefs.o Main.o
 	$(COMP) $(FLAGS) -o Main Main.o Funcs.o TypesAndDefs.o $(LIBS)
 Gauss: Funcs.o TypesAndDefs.o Gauss.o
+	$(COMP) $(FLAGS) -o Gauss Gauss.o Funcs.o TypesAndDefs.o $(LIBS)
+Test_Sin: Funcs.o TypesAndDefs.o Gauss.o
 	$(COMP) $(FLAGS) -o Gauss Gauss.o Funcs.o TypesAndDefs.o $(LIBS)
 clean:
 	rm *.mod *.o Main
