@@ -14,7 +14,7 @@ FLAGS += -zero
 #FLAGS += -parallel
 #FLAGS += -par-num-threads=8
 
-#FLAGS += -r8
+FLAGS += -r8
 #FLAGS += -axSSE4.1 
 #FLAGS += -axSSSE3
 #FLAGS += -fp-stack-check

@@ -4,6 +4,24 @@ module Funcs
   interface operator (.x.)
      module procedure cross
   end interface operator (.x.)
+  interface operator (.x.)
+     module procedure cross_product
+  end interface operator (.x.)
+
+  interface operator (.dot.)
+     module procedure dot
+  end interface operator (.dot.)
+  interface operator (.dot.)
+     module procedure dot_prod_vectorized
+  end interface operator (.dot.)
+
+  interface operator (.V.)
+     module procedure grad
+  end interface operator (.V.)
+  
+  interface operator (.V.)
+     module procedure grad_1d
+  end interface operator (.V.)
 
 contains
   !Forward FFT algorithms
@@ -13,8 +31,8 @@ contains
     !This is really a wrapper for the intel library so that I don't have to deal with changing precision in the main program
     implicit none
     include "fftw3.f"
-    complex(kind=8),intent(in) :: data_in(:)
-    complex(kind=8) :: data_out(:)
+    complex,intent(in) :: data_in(:)
+    complex :: data_out(:)
     integer*8 :: plan
     integer :: ndata
 
@@ -36,14 +54,14 @@ contains
     !call ifft_shift(out)
 
     !Normalize
-    data_out = data_out/sqrt(ndata*1._8)
+    data_out = data_out/sqrt(ndata*1.)
   end subroutine fft
 
   subroutine fft3d(data_in, data_out,shift)
-    !This routine takes a (complex(kind=8)) 3d array as input and calls the 1D fft algorithm over each dimension of the array
+    !This routine takes a (complex) 3d array as input and calls the 1D fft algorithm over each dimension of the array
     implicit none
-    complex(kind=8), intent(in) :: data_in(:,:,:)
-    complex(kind=8), intent(out) :: data_out(:,:,:)
+    complex, intent(in) :: data_in(:,:,:)
+    complex, intent(out) :: data_out(:,:,:)
     integer :: nx,ny,nz !size of the dimensions
     integer :: ix,iy,iz !counter variables for each dimension
     logical :: shift
@@ -82,8 +100,8 @@ contains
     implicit none
     include "fftw3.f"
     !3d fftw
-    complex(kind=8), intent(in) :: data_in(:,:,:)
-    complex(kind=8) :: data_out(:,:,:)
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
     integer*8 :: plan
     integer :: nx,ny,nz
     logical :: shift
@@ -108,7 +126,7 @@ contains
        call fftshift3d(data_out)
     end if
     
-    data_out = data_out/sqrt(nx*ny*nz*1._8)
+    data_out = data_out/sqrt(nx*ny*nz*1.)
   end subroutine fft_3d
 
 
@@ -122,8 +140,8 @@ contains
     !This is really a wrapper for the intel library so that I don't have to deal with changing precision in the main program
     implicit none
     include "fftw3.f"
-    complex(kind=8),intent(in) :: data_in(:)
-    complex(kind=8) :: data_out(:)
+    complex,intent(in) :: data_in(:)
+    complex :: data_out(:)
     integer*8 :: plan
     integer :: ndata
 
@@ -145,14 +163,14 @@ contains
     !call ifft_shift(data_out)
 
     !Normalize
-    data_out = data_out/sqrt(ndata*1._8)
+    data_out = data_out/sqrt(ndata*1.)
   end subroutine ifft
 
   subroutine ifft3d(data_in, data_out,shift)
     !This routine takes a (complex) 3d array as input and calls the 1D fft algorithm over each dimension of the array
     implicit none
-    complex(kind=8), intent(in) :: data_in(:,:,:)
-    complex(kind=8), intent(out) :: data_out(:,:,:)
+    complex, intent(in) :: data_in(:,:,:)
+    complex, intent(out) :: data_out(:,:,:)
     integer :: nx,ny,nz !size of the dimensions
     integer :: ix,iy,iz !counter variables for each dimension
     logical :: shift
@@ -189,8 +207,8 @@ contains
     implicit none
     include "fftw3.f"
     !3d fftw
-    complex(kind=8), intent(in) :: data_in(:,:,:)
-    complex(kind=8) :: data_out(:,:,:)
+    complex, intent(in) :: data_in(:,:,:)
+    complex :: data_out(:,:,:)
     integer*8 :: plan
     integer :: nx,ny,nz
     logical :: shift
@@ -215,7 +233,7 @@ contains
        call ifftshift3d(data_out)
     end if
     
-    data_out = data_out/sqrt(nx*ny*nz*1._8)
+    data_out = data_out/sqrt(nx*ny*nz*1.)
   end subroutine ifft_3d
   !===============================================================!
   !
@@ -225,8 +243,8 @@ contains
   subroutine fft_shift(stuff_in)
 
     implicit none
-    complex(kind=8) :: stuff_in(:)
-    complex(kind=8) :: dummy(size(stuff_in))
+    complex :: stuff_in(:)
+    complex :: dummy(size(stuff_in))
     integer :: fin, middle
 
     fin = size(stuff_in)
@@ -245,13 +263,13 @@ contains
   subroutine ifft_shift(stuff_in)
 
     implicit none
-    complex(kind=8) :: stuff_in(:)
-    complex(kind=8) :: dummy(size(stuff_in))
+    complex :: stuff_in(:)
+    complex :: dummy(size(stuff_in))
     integer :: fin
     integer :: middle
 
     fin = size(stuff_in)
-    middle = floor(fin/2._8)
+    middle = floor(fin/2.)
 
     if(mod(fin,2) == 0)then
        !Its even, the fft_shifts are symmetric
@@ -266,7 +284,7 @@ contains
 
   subroutine fftshift3d(stuffin)
     implicit none
-    complex(kind=8) :: stuffin(:,:,:)
+    complex :: stuffin(:,:,:)
     integer :: numx,numy,numz,ix,iy,iz
     numx = size(stuffin,1)
     numy = size(stuffin,2)
@@ -290,7 +308,7 @@ contains
 
   subroutine ifftshift3d(stuffin)
     implicit none
-    complex(kind=8) :: stuffin(:,:,:)
+    complex :: stuffin(:,:,:)
     integer :: numx,numy,numz,ix,iy,iz
 
     numx = size(stuffin,1)
@@ -335,8 +353,8 @@ contains
 !==================================================!
   function cross(A,B) result(C)
     implicit none
-    complex(kind=8),intent(in), dimension(:,:,:,:) :: A,B
-    complex(kind=8), allocatable, dimension(:,:,:,:) :: C
+    complex,intent(in), dimension(:,:,:,:) :: A,B
+    complex, allocatable, dimension(:,:,:,:) :: C
     integer :: ix,iy,iz
     ix = size(A,2)
     iy = size(A,3)
@@ -350,10 +368,28 @@ contains
     C(3,:,:,:) = A(1,:,:,:)*B(2,:,:,:) - A(2,:,:,:)*B(1,:,:,:)
   end function cross
 
+  function cross_product(x,y) result(z)
+    !Define the cross product between 2 vectors x(r) and y(r)
+    implicit none
+    complex,intent(in), dimension(:,:) :: x, y
+    complex, dimension(size(x,1),size(x,2)) ::z
+    if(size(x,1) /= size(y,1))then
+       write(*,*) 'Error: vectors not the same length'
+       stop
+    end if
+    !z_x = x_y*y_z - x_z*y_y
+    !z_y = x_z*y_x - x_x*y_z
+    !z_z = x_x*y_y - x_y*y_x
+    z(1,:) = x(2,:)*y(3,:) - x(3,:)*y(2,:)
+    z(2,:) = x(3,:)*y(1,:) - x(1,:)*y(3,:)
+    z(3,:) = x(1,:)*y(2,:) - x(2,:)*y(1,:)
+    return
+  end function cross_product
+
   function dot(A,B) result(C)
     implicit none
-    complex(kind=8),intent(in), dimension(:,:,:,:) :: A,B
-    complex(kind=8), allocatable, dimension(:,:,:) :: C
+    complex,intent(in), dimension(:,:,:,:) :: A,B
+    complex, allocatable, dimension(:,:,:) :: C
     integer :: ix,iy,iz
     ix = size(A,2)
     iy = size(A,3)
@@ -362,11 +398,18 @@ contains
     C(:,:,:) = A(1,:,:,:)*B(1,:,:,:) + A(2,:,:,:)*B(2,:,:,:) + A(3,:,:,:)*B(3,:,:,:)
   end function dot
   
+  function dot_prod_vectorized(x,y) result(z)
+    implicit none
+    complex, dimension(:,:), intent(in) :: x, y
+    complex :: z(size(x,2))
+    z = x(1,:)*y(1,:) + x(2,:)*y(2,:) + x(3,:)*y(3,:)
+  end function dot_prod_vectorized
+
   function grad(A,b) result(C)
     implicit none
-    complex(kind=8),intent(in), dimension(:,:,:,:) :: A
-    complex(kind=8),intent(in), dimension(:,:,:) :: b
-    complex(kind=8), allocatable, dimension(:,:,:,:) :: C
+    complex,intent(in), dimension(:,:,:,:) :: A
+    complex,intent(in), dimension(:,:,:) :: b
+    complex, allocatable, dimension(:,:,:,:) :: C
     integer :: ix,iy,iz,count
     ix = size(A,2)
     iy = size(A,3)
@@ -374,13 +417,22 @@ contains
     allocate(C(3,ix,iy,iz))
     forall(count=1:3) C(count,:,:,:) = A(count,:,:,:)*b
   end function grad
-  
+
+  function grad_1d(A,b) result(C)
+    implicit none
+    complex, intent(in), dimension(:,:) :: A
+    complex, intent(in), dimension(:) :: b
+    complex, dimension(size(A,1),size(A,2)) :: C
+    integer :: count
+    forall(count=1:3) C(count,:) = A(count,:)*b
+  end function grad_1d
+
   function average3(input) result(avg)
     !This function will take a 2 dimensional average
     !It will take in a 3d  array, take the average in each of the x-y planes and out a 3D array whose x-y planes are replaced by that average
     implicit none
-    complex(kind=8),intent(in) :: input(:,:,:)
-    complex(kind=8) :: avg(size(input,1),size(input,2),size(input,3))
+    complex,intent(in) :: input(:,:,:)
+    complex :: avg(size(input,1),size(input,2),size(input,3))
     integer :: nx,ny,nz
     integer :: iz
 
@@ -389,7 +441,7 @@ contains
     nz = size(input,3)
     
     do iz=1,nz
-       avg(:,:,iz) = sum(input(:,:,iz))/real(nx,kind=8)/real(ny,kind=8)
+       avg(:,:,iz) = sum(input(:,:,iz))/real(nx)/real(ny)
     end do
   end function average3
 
@@ -397,8 +449,8 @@ contains
     !This function will take a 2 dimensional average
     !It will take in a 4d  array, take the average in each of the x-y planes and out a 4D array whose x-y planes are replaced by that average
     implicit none
-    complex(kind=8),intent(in) :: input(:,:,:,:)
-    complex(kind=8) :: avg(size(input,1),size(input,2),size(input,3),size(input,4))
+    complex,intent(in) :: input(:,:,:,:)
+    complex :: avg(size(input,1),size(input,2),size(input,3),size(input,4))
     integer :: nx,ny,nz
     integer :: iz,id
 
@@ -407,9 +459,37 @@ contains
     nz = size(input,3)
     do id=1,3
        do iz=1,nz
-          avg(id,:,:,iz) = sum(input(id,:,:,iz))/real(nx,kind=8)/real(ny,kind=8)
+          avg(id,:,:,iz) = sum(input(id,:,:,iz))/real(nx)/real(ny)
        end do
     end do
   end function average4
   
+  function average(input,dim) result(avg)
+    implicit none
+    !Takes the average of a cube over a plane and returns a number for each plane stored in the un-averaged dimension
+    !Ex. averaging over the x-y plane will produce a vector in the z-direction
+    integer, intent(in) :: dim
+    complex, intent(in) :: input(:,:,:)
+    complex ::  avg(size(input,dim))
+    integer :: nz
+    integer :: iz
+    if(dim<0 .or. dim>3)then
+       write(*,*) "Dimension is out of bounds in function average, try again"
+       stop
+    end if
+    nz = size(input,dim)
+    if(dim == 3)then
+       do iz=1,nz
+          avg(iz) = sum(input(:,:,iz))/real(size(input,1))/real(size(input,2))
+       end do
+    else if(dim == 2)then
+       do iz =1,nz
+          avg(iz) = sum(input(:,iz,:))/real(size(input,1))/real(size(input,3))
+       end do
+    else
+       do iz =1,nz
+          avg(iz) = sum(input(iz,:,:))/real(size(input,2))/real(size(input,3))
+       end do  
+    end if
+  end function average
 end module Funcs
